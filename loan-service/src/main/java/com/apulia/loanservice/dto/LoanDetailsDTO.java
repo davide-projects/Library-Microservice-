@@ -5,7 +5,7 @@ import java.time.LocalDate;
 
 public record LoanDetailsDTO(
         Loan loan,
-        BookDTO book,
+        BookClientDTO book,
         MemberDTO member,
         LocalDate loanDate,
         LocalDate returnDate

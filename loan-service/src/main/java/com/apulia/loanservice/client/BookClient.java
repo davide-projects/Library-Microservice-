@@ -1,6 +1,6 @@
 package com.apulia.loanservice.client;
 
-import com.apulia.loanservice.dto.BookDTO;
+import com.apulia.loanservice.dto.BookClientDTO;
 import com.apulia.loanservice.exception.ValidationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,10 +22,10 @@ public class BookClient {
         this.restTemplate = restTemplate;
     }
 
-    public BookDTO getBookById(Integer bookId) {
+    public BookClientDTO getBookById(Integer bookId) {
         try {
             String url = bookServiceUrl + "/" + bookId;
-            return restTemplate.getForObject(url, BookDTO.class);
+            return restTemplate.getForObject(url, BookClientDTO.class);
         } catch (Exception e) {
             logger.error("Error calling Book Service for ID {}: {}", bookId, e.getMessage());
             throw new ValidationException("Book with ID " + bookId + " does not exist");

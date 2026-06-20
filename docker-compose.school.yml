@@ -41,14 +41,25 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://host.docker.internal:3307/loan_service_db
       SPRING_DATASOURCE_USERNAME: librarian
       SPRING_DATASOURCE_PASSWORD: Libr@ry2026
-
-      # Microservizi interni (uguali ovunque)
       MICROSERVICES_BOOK-SERVICE_URL: http://book-service:8081/book
       MICROSERVICES_MEMBER-SERVICE_URL: http://member-service:8082/members
-
     depends_on:
       - book-service
       - member-service
+    networks:
+      - library-network
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+    image: api-gateway
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - book-service
+      - member-service
+      - loan-service
     networks:
       - library-network
 

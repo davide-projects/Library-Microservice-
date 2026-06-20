@@ -1,15 +1,15 @@
-package com.apulia.bookservice.dto;
+package com.apulia.loanservice.dto;
 
-public class BookDTO {
+public class BookClientDTO {
 
     private Integer id;
     private String title;
     private String author;
     private String publisher;
 
-    public BookDTO() {}
+    public BookClientDTO() {}
 
-    public BookDTO(Integer id, String title, String author, String publisher) {
+    public BookClientDTO(Integer id, String title, String author, String publisher) {
         this.id = id;
         this.title = title;
         this.author = author;

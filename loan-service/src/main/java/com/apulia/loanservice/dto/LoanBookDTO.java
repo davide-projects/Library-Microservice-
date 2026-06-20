@@ -1,13 +1,13 @@
 package com.apulia.loanservice.dto;
 
-public class BookDTO {
+public class LoanBookDTO {
 
     private Integer id;
     private String title;
     private String author;
     private String publisher;
 
-    public BookDTO() {}
+    public LoanBookDTO() {}
 
     public Integer getId() {
         return id;
