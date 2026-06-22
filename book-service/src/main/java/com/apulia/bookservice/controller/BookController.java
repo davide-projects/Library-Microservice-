@@ -110,8 +110,9 @@ public class BookController {
     // -------------------------
     @GetMapping("/search")
     public ResponseEntity<List<BookDTO>> searchBooks(
-            @RequestParam(required = false) String title,
-            @RequestParam(required = false) String author) {
+            // Queste righe qui servono per cercare i libri per titolo o autore
+            @RequestParam(value = "title", required = false) String title,
+            @RequestParam(value = "author", required = false) String author) {
 
         List<BookDTO> dtos = bookService.searchByAuthorAndTitle(author, title)
                 .stream()

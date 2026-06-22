@@ -12,17 +12,17 @@ spring:
         - id: book-service
           uri: http://book-service:8081
           predicates:
-            - Path=/book/**
+            - Path=/book, /book/**
 
         - id: member-service
           uri: http://member-service:8082
           predicates:
-            - Path=/member/**
+            - Path=/members, /members/**
 
         - id: loan-service
           uri: http://loan-service:8083
           predicates:
-            - Path=/loan/**
+            - Path=/loans, /loans/**
 
 security:
   tokens:

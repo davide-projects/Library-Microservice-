@@ -1,154 +1,81 @@
 # 📚 Apulia Library — Microservices Project
 
 Ecosistema di microservizi per la gestione di una biblioteca digitale, sviluppato con **Java 21** e **Spring Boot 4**.
- 
+
 ---
 
 ## 🧩 Architettura
 
-Il progetto è composto da tre microservizi indipendenti organizzati in un progetto Maven multi-modulo:
+Il progetto è composto da tre microservizi di business indipendenti più un API Gateway d'ingresso, organizzati in un progetto Maven multi-modulo:
 
 | Servizio | Descrizione | Porta |
 |---|---|---|
+| 🚪 API Gateway | Gateway d'ingresso e autenticazione Bearer Token | `8080` |
 | 📘 Book Service | Gestione del catalogo libri | `8081` |
 | 🧑‍🤝‍🧑 Member Service | Gestione degli utenti iscritti | `8082` |
 | 📄 Loan Service | Gestione dei prestiti | `8083` |
- 
+
 ---
 
 ## 🛠️ Tecnologie utilizzate
 
 - Java 21
-- Spring Boot 4.1.0
-- Spring Web
+- Spring Boot 4.1.0 / 3.4.1 (API Gateway)
+- Spring Cloud Gateway (API Gateway)
+- Spring Boot Starter WebFlux (API Gateway)
+- Spring Web (Microservizi)
 - Spring Data JPA + Hibernate
 - Spring Security (Book Service)
 - Spring Validation
 - Springdoc OpenAPI 2.8.9
-- MySQL 8
+- MySQL 8 (esterno o su host)
 - Lombok
 - Maven (struttura multi-modulo)
 - Docker & Docker Compose
+
 ---
 
-## 📦 Installazione
+## 🚪 API Gateway (Porta `8080`)
 
-Clonare il repository del progetto:
+L'**API Gateway** agisce come punto di ingresso unico per tutte le richieste esterne ed esegue il routing dinamico verso i microservizi interni. Inoltre, implementa un filtro di sicurezza Bearer Token.
 
-```bash
-git clone https://github.com/davide-projects/Library-Microservice-Architecture.git
-cd Library-Microservice-Architecture
+### Autenticazione
+Tutte le chiamate instradate tramite il Gateway sulla porta `8080` richiedono l'autenticazione tramite un header HTTP `Authorization`:
+```http
+Authorization: Bearer my-secret-token-123
 ```
+In caso di token mancante o errato, il gateway restituirà `401 Unauthorized`.
 
-### ▶️ Avvio manuale (senza Docker)
+### Regole di Routing
 
-Avviare ogni microservizio separatamente da IntelliJ oppure da terminale:
+| Path Sorgente (Gateway) | Destinazione |
+|---|---|
+| `/book` e `/book/**` | `http://book-service:8081` |
+| `/members` e `/members/**` | `http://member-service:8082` |
+| `/loans` e `/loans/**` | `http://loan-service:8083` |
 
-```bash
-cd book-service
-.\mvnw spring-boot:run
- 
-cd member-service
-.\mvnw spring-boot:run
- 
-cd loan-service
-.\mvnw spring-boot:run
-```
- 
 ---
 
 ## 🐳 Docker & Docker Compose
 
-L'intero ecosistema dei microservizi può essere avviato tramite Docker grazie ai Dockerfile presenti in ogni modulo e al file `docker-compose.yml` nella root del progetto.
+L'intero ecosistema può essere compilato e avviato tramite Docker.
 
-### 📦 Build delle immagini
-
-Da root del progetto:
+### 📦 Build delle immagini e compilazione jar
+Da root del progetto, compila i progetti con Maven e builda i container:
 
 ```bash
+# Compilazione dei jar
+.\mvnw.cmd package -DskipTests
+
+# Build delle immagini docker
 docker-compose build
 ```
 
-Oppure build manuale dei singoli servizi:
-
-```bash
-docker build -t apulia-book-service ./book-service
-docker build -t apulia-member-service ./member-service
-docker build -t apulia-loan-service ./loan-service
-```
-
 ### ▶️ Avvio dei microservizi
-
 Per avviare l'intera architettura:
 
 ```bash
 docker-compose up -d
-```
-
-I servizi saranno disponibili su:
-
-| Servizio | Porta |
-|---|---|
-| Book Service | 8081 |
-| Member Service | 8082 |
-| Loan Service | 8083 |
-| MySQL | 3306 |
-
-### 🗂️ Struttura del docker-compose
-
-```yaml
-version: '3.9'
-services:
-  mysql:
-    image: mysql:8
-    container_name: apulia-mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: apulia_library
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    networks:
-      - apulia-net
- 
-  book-service:
-    build: ./book-service
-    container_name: book-service
-    ports:
-      - "8081:8081"
-    depends_on:
-      - mysql
-    networks:
-      - apulia-net
- 
-  member-service:
-    build: ./member-service
-    container_name: member-service
-    ports:
-      - "8082:8082"
-    depends_on:
-      - mysql
-    networks:
-      - apulia-net
- 
-  loan-service:
-    build: ./loan-service
-    container_name: loan-service
-    ports:
-      - "8083:8083"
-    depends_on:
-      - mysql
-      - book-service
-      - member-service
-    networks:
-      - apulia-net
- 
-networks:
-  apulia-net:
- 
-volumes:
-  mysql_data:
 ```
 
 ### 🧪 Verifica stato dei container
@@ -157,10 +84,10 @@ volumes:
 docker ps
 ```
 
-Per vedere i log di un servizio:
+Per vedere i log di un servizio (ad esempio l'api-gateway):
 
 ```bash
-docker logs book-service
+docker logs api-gateway
 ```
 
 ### 🛑 Stop & Cleanup
@@ -169,55 +96,37 @@ docker logs book-service
 docker-compose down
 ```
 
-Per rimuovere anche i volumi:
-
-```bash
-docker-compose down -v
-```
- 
 ---
 
-## 📘 Book Service
+## 📘 Book Service (Porta `8081` / Gateway `8080`)
 
 Microservizio dedicato alla gestione del catalogo libri.
 
-### Funzionalità principali
-- CRUD completo dei libri
-- Ricerca per titolo e/o autore
-- Validazione input
-- Gestione errori centralizzata con logging SLF4J
-- Documentazione API con Swagger/OpenAPI
-- Spring Security configurato (accesso pubblico)
-### Endpoints
+### Endpoints (tramite Gateway `8080` con Auth Header)
 
 | Metodo | Endpoint | Descrizione |
 |---|---|---|
 | GET | `/book` | Lista libri |
 | GET | `/book/{id}` | Libro per ID |
-| GET | `/book/search` | Ricerca per titolo e/o autore |
+| GET | `/book/search` | Ricerca per titolo e/o autore (es. `?title=1984`) |
 | POST | `/book` | Crea libro |
 | PUT | `/book/{id}` | Aggiorna libro |
 | PATCH | `/book/{id}` | Aggiornamento parziale |
 | DELETE | `/book/{id}` | Elimina libro |
 
-### Documentazione API
+### Documentazione API (Diretta)
 ```
 http://localhost:8081/swagger-ui/index.html
 http://localhost:8081/v3/api-docs
 ```
- 
+
 ---
 
-## 🧑‍🤝‍🧑 Member Service
+## 🧑‍🤝‍🧑 Member Service (Porta `8082` / Gateway `8080`)
 
 Microservizio dedicato alla gestione degli utenti iscritti alla biblioteca.
 
-### Funzionalità principali
-- CRUD completo dei membri
-- Validazione input
-- Gestione errori centralizzata con logging SLF4J
-- Documentazione API con Swagger/OpenAPI
-### Endpoints
+### Endpoints (tramite Gateway `8080` con Auth Header)
 
 | Metodo | Endpoint | Descrizione |
 |---|---|---|
@@ -225,48 +134,38 @@ Microservizio dedicato alla gestione degli utenti iscritti alla biblioteca.
 | GET | `/members/{id}` | Membro per ID |
 | POST | `/members` | Crea membro |
 | PUT | `/members/{id}` | Aggiorna membro |
-| PATCH | `/members/{id}` | Aggiornamento parziale |
 | DELETE | `/members/{id}` | Elimina membro |
 
-### Documentazione API
+### Documentazione API (Diretta)
 ```
 http://localhost:8082/swagger-ui/index.html
 http://localhost:8082/v3/api-docs
 ```
- 
+
 ---
 
-## 📄 Loan Service
+## 📄 Loan Service (Porta `8083` / Gateway `8080`)
 
-Microservizio dedicato alla gestione dei prestiti, con comunicazione REST verso Book Service e Member Service.
+Microservizio dedicato alla gestione dei prestiti. Interagisce internamente via REST con Book Service e Member Service per validare e arricchire i dati dei prestiti.
 
-### Funzionalità principali
-- Creazione prestiti multipli
-- Restituzione libri
-- Verifica disponibilità libro tramite Book Service
-- Verifica esistenza membro tramite Member Service
-- Dettagli prestito arricchiti con dati di libro e membro
-- Validazione input
-- Gestione errori centralizzata con logging SLF4J
-- Documentazione API con Swagger/OpenAPI
-### Endpoints
+### Endpoints (tramite Gateway `8080` con Auth Header)
 
 | Metodo | Endpoint | Descrizione |
 |---|---|---|
 | GET | `/loans` | Lista prestiti |
 | GET | `/loans/{id}` | Prestito per ID |
-| GET | `/loans/details` | Lista prestiti con dettagli libro e membro |
-| GET | `/loans/details/{id}` | Dettaglio singolo prestito |
-| POST | `/loans` | Crea prestiti |
-| PATCH | `/loans/{id}/return` | Restituisce libro |
+| GET | `/loans/details` | Lista prestiti arricchiti con dettagli libro e membro |
+| GET | `/loans/details/{id}` | Dettaglio singolo prestito arricchito |
+| POST | `/loans` | Crea prestiti (multipli) |
+| PATCH | `/loans/{id}/return` | Restituisce libro (imposta returnDate) |
 | DELETE | `/loans/{id}` | Elimina prestito |
 
-### Documentazione API
+### Documentazione API (Diretta)
 ```
 http://localhost:8083/swagger-ui/index.html
 http://localhost:8083/v3/api-docs
 ```
- 
+
 ---
 
 ## 🧱 Struttura progetto
@@ -274,52 +173,35 @@ http://localhost:8083/v3/api-docs
 ```
 Library-Microservice-Architecture/
 ├── pom.xml                  (parent multi-modulo)
-├── docker-compose.yml
-├── book-service/
+├── docker-compose.yml       (configurazione orchestratore docker)
+├── api-gateway/             (API Gateway del sistema)
 │   ├── Dockerfile
-│   └── src/main/java/com/apulia/bookservice/
-│       ├── config/
-│       ├── controller/
-│       ├── dto/
-│       ├── model/
-│       ├── repository/
-│       ├── security/
-│       ├── service/
-│       └── exception/
-├── member-service/
+│   └── src/main/
+├── book-service/            (Catalogo libri)
 │   ├── Dockerfile
-│   └── src/main/java/com/apulia/memberservice/
-│       ├── config/
-│       ├── controller/
-│       ├── dto/
-│       ├── model/
-│       ├── repository/
-│       ├── service/
-│       └── exception/
-└── loan-service/
+│   └── src/main/
+├── member-service/          (Gestione iscritti)
+│   ├── Dockerfile
+│   └── src/main/
+└── loan-service/            (Gestione prestiti)
     ├── Dockerfile
-    └── src/main/java/com/apulia/loanservice/
-        ├── client/
-        ├── config/
-        ├── controller/
-        ├── dto/
-        ├── model/
-        ├── repository/
-        ├── service/
-        └── exception/
+    └── src/main/
 ```
- 
+
 ---
 
 ## 📝 TO-DO
 
-- [ ] Aggiungere API Gateway
+- [x] Aggiungere API Gateway con Bearer Token Authentication
+- [ ] Aggiungere meccanismo di discovery (Eureka)
+- [ ] Centralizzare la configurazione (Spring Cloud Config)
+
 ---
 
 ## 📄 Licenza
 
 Vedi il file `LICENSE` nella repository.
- 
+
 ---
 
 ## 👨‍💻 Autore
