@@ -181,6 +181,10 @@ Microservizio dedicato alla gestione dei prestiti. Interagisce internamente via 
 
 ---
 
+> **Nota:** Il branch `main` funge da backup snapshot allineato a `prod` e `dev`.
+
+---
+
 ## Struttura progetto
 
 ```
