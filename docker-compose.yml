@@ -1,18 +1,35 @@
-version: '3.8'
-
 services:
+
+  mysql-db:
+    image: mysql:8.0
+    container_name: mysql-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_USER: librarian
+      MYSQL_PASSWORD: Libr@ry2026
+    volumes:
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - library-network
 
   book-service:
     build:
       context: ./book-service
     image: book-service
     container_name: book-service
-    ports:
-      - "8081:8081"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://host.docker.internal:3306/book_service_db
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-db:3306/book_service_db
       SPRING_DATASOURCE_USERNAME: librarian
       SPRING_DATASOURCE_PASSWORD: Libr@ry2026
+    depends_on:
+      mysql-db:
+        condition: service_healthy
     networks:
       - library-network
 
@@ -21,12 +38,13 @@ services:
       context: ./member-service
     image: member-service
     container_name: member-service
-    ports:
-      - "8082:8082"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://host.docker.internal:3306/member_service_db
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-db:3306/member_service_db
       SPRING_DATASOURCE_USERNAME: librarian
       SPRING_DATASOURCE_PASSWORD: Libr@ry2026
+    depends_on:
+      mysql-db:
+        condition: service_healthy
     networks:
       - library-network
 
@@ -35,17 +53,19 @@ services:
       context: ./loan-service
     image: loan-service
     container_name: loan-service
-    ports:
-      - "8083:8083"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://host.docker.internal:3306/loan_service_db
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-db:3306/loan_service_db
       SPRING_DATASOURCE_USERNAME: librarian
       SPRING_DATASOURCE_PASSWORD: Libr@ry2026
       MICROSERVICES_BOOK-SERVICE_URL: http://book-service:8081/book
       MICROSERVICES_MEMBER-SERVICE_URL: http://member-service:8082/members
     depends_on:
-      - book-service
-      - member-service
+      mysql-db:
+        condition: service_healthy
+      book-service:
+        condition: service_started
+      member-service:
+        condition: service_started
     networks:
       - library-network
 
@@ -62,6 +82,9 @@ services:
       - loan-service
     networks:
       - library-network
+
+volumes:
+  mysql-data:
 
 networks:
   library-network:

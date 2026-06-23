@@ -4,20 +4,23 @@ Ecosistema di microservizi per la gestione di una biblioteca digitale, sviluppat
 
 ---
 
-## 🧩 Architettura
+## Architettura
 
-Il progetto è composto da tre microservizi di business indipendenti più un API Gateway d'ingresso, organizzati in un progetto Maven multi-modulo:
+Il progetto e' composto da tre microservizi di business indipendenti piu' un API Gateway d'ingresso, organizzati in un progetto Maven multi-modulo:
 
-| Servizio | Descrizione | Porta |
-|---|---|---|
-| 🚪 API Gateway | Gateway d'ingresso e autenticazione Bearer Token | `8080` |
-| 📘 Book Service | Gestione del catalogo libri | `8081` |
-| 🧑‍🤝‍🧑 Member Service | Gestione degli utenti iscritti | `8082` |
-| 📄 Loan Service | Gestione dei prestiti | `8083` |
+| Servizio | Descrizione | Porta interna | Accessibile dall'esterno |
+|---|---|---|---|
+| API Gateway | Gateway d'ingresso e autenticazione Bearer Token | `8080` | **Si'** |
+| Book Service | Gestione del catalogo libri | `8081` | No (solo via gateway) |
+| Member Service | Gestione degli utenti iscritti | `8082` | No (solo via gateway) |
+| Loan Service | Gestione dei prestiti | `8083` | No (solo via gateway) |
+| MySQL | Database relazionale | `3306` | No (solo rete interna Docker) |
+
+> **Nota:** L'unico punto di ingresso e' il **API Gateway sulla porta `8080`**. I microservizi non sono direttamente raggiungibili dall'esterno.
 
 ---
 
-## 🛠️ Tecnologie utilizzate
+## Tecnologie utilizzate
 
 - Java 21
 - Spring Boot 4.1.0 / 3.4.1 (API Gateway)
@@ -28,14 +31,14 @@ Il progetto è composto da tre microservizi di business indipendenti più un API
 - Spring Security (Book Service)
 - Spring Validation
 - Springdoc OpenAPI 2.8.9
-- MySQL 8 (esterno o su host)
+- MySQL 8 (containerizzato)
 - Lombok
 - Maven (struttura multi-modulo)
 - Docker & Docker Compose
 
 ---
 
-## 🚪 API Gateway (Porta `8080`)
+## API Gateway (Porta `8080`)
 
 L'**API Gateway** agisce come punto di ingresso unico per tutte le richieste esterne ed esegue il routing dinamico verso i microservizi interni. Inoltre, implementa un filtro di sicurezza Bearer Token.
 
@@ -44,7 +47,7 @@ Tutte le chiamate instradate tramite il Gateway sulla porta `8080` richiedono l'
 ```http
 Authorization: Bearer my-secret-token-123
 ```
-In caso di token mancante o errato, il gateway restituirà `401 Unauthorized`.
+In caso di token mancante o errato, il gateway restituira' `401 Unauthorized`.
 
 ### Regole di Routing
 
@@ -56,11 +59,11 @@ In caso di token mancante o errato, il gateway restituirà `401 Unauthorized`.
 
 ---
 
-## 🐳 Docker & Docker Compose
+## Docker & Docker Compose
 
-L'intero ecosistema può essere compilato e avviato tramite Docker.
+L'intero ecosistema puo' essere compilato e avviato tramite Docker. Il database MySQL e' incluso nei servizi Docker.
 
-### 📦 Build delle immagini e compilazione jar
+### Build delle immagini e compilazione jar
 Da root del progetto, compila i progetti con Maven e builda i container:
 
 ```bash
@@ -71,34 +74,36 @@ Da root del progetto, compila i progetti con Maven e builda i container:
 docker-compose build
 ```
 
-### ▶️ Avvio dei microservizi
+### Avvio dei microservizi
 Per avviare l'intera architettura:
 
 ```bash
 docker-compose up -d
 ```
 
-### 🧪 Verifica stato dei container
+### Verifica stato dei container
 
 ```bash
-docker ps
+docker-compose ps
 ```
 
 Per vedere i log di un servizio (ad esempio l'api-gateway):
 
 ```bash
-docker logs api-gateway
+docker-compose logs api-gateway
 ```
 
-### 🛑 Stop & Cleanup
+### Stop & Cleanup
 
 ```bash
 docker-compose down
+# Per rimuovere anche i volumi (database compreso):
+docker-compose down -v
 ```
 
 ---
 
-## 📘 Book Service (Porta `8081` / Gateway `8080`)
+## Book Service (Porta interna `8081` / Gateway `8080`)
 
 Microservizio dedicato alla gestione del catalogo libri.
 
@@ -114,15 +119,9 @@ Microservizio dedicato alla gestione del catalogo libri.
 | PATCH | `/book/{id}` | Aggiornamento parziale |
 | DELETE | `/book/{id}` | Elimina libro |
 
-### Documentazione API (Diretta)
-```
-http://localhost:8081/swagger-ui/index.html
-http://localhost:8081/v3/api-docs
-```
-
 ---
 
-## 🧑‍🤝‍🧑 Member Service (Porta `8082` / Gateway `8080`)
+## Member Service (Porta interna `8082` / Gateway `8080`)
 
 Microservizio dedicato alla gestione degli utenti iscritti alla biblioteca.
 
@@ -132,19 +131,13 @@ Microservizio dedicato alla gestione degli utenti iscritti alla biblioteca.
 |---|---|---|
 | GET | `/members` | Lista membri |
 | GET | `/members/{id}` | Membro per ID |
-| POST | `/members` | Crea membro |
+| POST | `/members` | Crea membro (firstName, lastName, city, phone) |
 | PUT | `/members/{id}` | Aggiorna membro |
 | DELETE | `/members/{id}` | Elimina membro |
 
-### Documentazione API (Diretta)
-```
-http://localhost:8082/swagger-ui/index.html
-http://localhost:8082/v3/api-docs
-```
-
 ---
 
-## 📄 Loan Service (Porta `8083` / Gateway `8080`)
+## Loan Service (Porta interna `8083` / Gateway `8080`)
 
 Microservizio dedicato alla gestione dei prestiti. Interagisce internamente via REST con Book Service e Member Service per validare e arricchire i dati dei prestiti.
 
@@ -156,54 +149,53 @@ Microservizio dedicato alla gestione dei prestiti. Interagisce internamente via 
 | GET | `/loans/{id}` | Prestito per ID |
 | GET | `/loans/details` | Lista prestiti arricchiti con dettagli libro e membro |
 | GET | `/loans/details/{id}` | Dettaglio singolo prestito arricchito |
-| POST | `/loans` | Crea prestiti (multipli) |
+| POST | `/loans` | Crea prestiti (multipli: `memberId` + `bookIds`) |
 | PATCH | `/loans/{id}/return` | Restituisce libro (imposta returnDate) |
 | DELETE | `/loans/{id}` | Elimina prestito |
 
-### Documentazione API (Diretta)
-```
-http://localhost:8083/swagger-ui/index.html
-http://localhost:8083/v3/api-docs
-```
-
 ---
 
-## 🧱 Struttura progetto
+## Struttura progetto
 
 ```
 Library-Microservice-Architecture/
-├── pom.xml                  (parent multi-modulo)
-├── docker-compose.yml       (configurazione orchestratore docker)
-├── api-gateway/             (API Gateway del sistema)
+├── pom.xml                    (parent multi-modulo)
+├── docker-compose.yml         (configurazione orchestratore docker)
+├── docker-compose.school.yml  (variante per ambiente scolastico)
+├── mysql/
+│   └── init.sql               (script inizializzazione database)
+├── api-gateway/               (API Gateway del sistema)
 │   ├── Dockerfile
 │   └── src/main/
-├── book-service/            (Catalogo libri)
+├── book-service/              (Catalogo libri)
 │   ├── Dockerfile
 │   └── src/main/
-├── member-service/          (Gestione iscritti)
+├── member-service/            (Gestione iscritti)
 │   ├── Dockerfile
 │   └── src/main/
-└── loan-service/            (Gestione prestiti)
+└── loan-service/              (Gestione prestiti)
     ├── Dockerfile
     └── src/main/
 ```
 
 ---
 
-## 📝 TO-DO
+## TO-DO
 
 - [x] Aggiungere API Gateway con Bearer Token Authentication
+- [x] Containerizzare MySQL nel docker-compose
+- [x] Bloccare accesso diretto ai microservizi (solo gateway esposto)
 - [ ] Aggiungere meccanismo di discovery (Eureka)
 - [ ] Centralizzare la configurazione (Spring Cloud Config)
 
 ---
 
-## 📄 Licenza
+## Licenza
 
 Vedi il file `LICENSE` nella repository.
 
 ---
 
-## 👨‍💻 Autore
+## Autore
 
 **Davide** — Apulia Library Project
