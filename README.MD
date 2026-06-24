@@ -55,6 +55,19 @@ Authorization: Bearer my-secret-token-123
 ```
 In caso di token mancante o errato, il gateway restituira' `401 Unauthorized` con header `WWW-Authenticate: Bearer`.
 
+### Rate Limiting
+Il gateway applica un rate limit di **10 richieste ogni 60 secondi** per IP client. Al superamento, restituisce `429 Too Many Requests` con body JSON contenente messaggio esplicativo, `retryAfterSeconds` e `resetTime` (ISO-8601):
+
+```json
+{
+  "status": 429,
+  "error": "Too Many Requests",
+  "message": "Rate limit exceeded. Please wait 60 seconds before retrying.",
+  "retryAfterSeconds": 60,
+  "resetTime": "2026-06-24T08:07:08.997289330Z"
+}
+```
+
 ### Regole di Routing
 
 | Path Sorgente (Gateway) | Destinazione |
@@ -117,7 +130,8 @@ Il servizio **Config Server** (porta `8888`) centralizza la configurazione di tu
 Ogni microservizio carica la configurazione all'avvio tramite `spring.config.import=configserver:http://config-server:8888` con retry automatico (fail-fast, max 10 tentativi).
 
 La configurazione condivisa (`config-repo/application.yml`) include:
-- `ddl-auto: update` per Hibernate
+- `ddl-auto: validate` per Hibernate
+- `validate-on-migrate: false` per Flyway (aggiornamenti checksum manuali)
 - logging `WARN` e Swagger disabilitato
 - Parametri SSL MySQL (useSSL=false, allowPublicKeyRetrieval=true) via HikariCP properties
 

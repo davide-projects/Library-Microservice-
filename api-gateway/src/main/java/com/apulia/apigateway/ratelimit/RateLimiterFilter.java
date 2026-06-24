@@ -4,13 +4,16 @@ import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -36,7 +39,16 @@ public class RateLimiterFilter implements WebFilter {
 
         exchange.getResponse().setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
         exchange.getResponse().getHeaders().add("Retry-After", String.valueOf(config.getRefillSeconds()));
-        return exchange.getResponse().setComplete();
+        exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
+
+        int retryAfter = config.getRefillSeconds();
+        String resetTimestamp = Instant.now().plusSeconds(retryAfter).toString();
+        String body = String.format(
+                "{\"status\":429,\"error\":\"Too Many Requests\",\"message\":\"Rate limit exceeded. Please wait %d seconds before retrying.\",\"retryAfterSeconds\":%d,\"resetTime\":\"%s\"}",
+                retryAfter, retryAfter, resetTimestamp
+        );
+        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+        return exchange.getResponse().writeWith(Mono.just(exchange.getResponse().bufferFactory().wrap(bytes)));
     }
 
     private Bucket createBucket(String clientIp) {
