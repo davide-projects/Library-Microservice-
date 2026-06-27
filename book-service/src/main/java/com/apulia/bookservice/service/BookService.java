@@ -5,6 +5,8 @@ import com.apulia.bookservice.exception.BookNotFoundException;
 import com.apulia.bookservice.exception.SearchException;
 import com.apulia.bookservice.model.Book;
 import com.apulia.bookservice.repository.BookRepository;
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,22 +22,30 @@ public class BookService {
     }
 
     @Transactional(readOnly = true)
+    @Bulkhead(name = "bookService")
+    @RateLimiter(name = "bookService")
     public List<Book> getAllBooks() {
         return bookRepository.findAll();
     }
 
     @Transactional(readOnly = true)
+    @Bulkhead(name = "bookService")
+    @RateLimiter(name = "bookService")
     public Book getBookById(Integer id) {
         return bookRepository.findById(id)
                 .orElseThrow(() -> new BookNotFoundException(id));
     }
 
     @Transactional
+    @Bulkhead(name = "bookService")
+    @RateLimiter(name = "bookService")
     public Book addBook(Book book) {
         return bookRepository.save(book);
     }
 
     @Transactional
+    @Bulkhead(name = "bookService")
+    @RateLimiter(name = "bookService")
     public Book updateBook(int id, Book book) {
         Book existingBook = getBookById(id);
 
@@ -47,6 +57,8 @@ public class BookService {
     }
 
     @Transactional
+    @Bulkhead(name = "bookService")
+    @RateLimiter(name = "bookService")
     public Book patchBook(int id, BookPatchDTO patch) {
 
         Book existingBook = getBookById(id);
@@ -65,12 +77,16 @@ public class BookService {
     }
 
     @Transactional
+    @Bulkhead(name = "bookService")
+    @RateLimiter(name = "bookService")
     public void deleteBook(int id) {
         Book existingBook = getBookById(id);
         bookRepository.delete(existingBook);
     }
 
     @Transactional(readOnly = true)
+    @Bulkhead(name = "bookService")
+    @RateLimiter(name = "bookService")
     public List<Book> searchByAuthorAndTitle(String author, String title) {
 
         boolean hasAuthor = (author != null && !author.isBlank());

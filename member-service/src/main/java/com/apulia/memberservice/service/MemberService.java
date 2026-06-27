@@ -3,6 +3,8 @@ package com.apulia.memberservice.service;
 import com.apulia.memberservice.exception.MemberNotFoundException;
 import com.apulia.memberservice.model.Member;
 import com.apulia.memberservice.repository.MemberRepository;
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,15 +18,21 @@ public class MemberService {
         this.memberRepository = memberRepository;
     }
 
+    @Bulkhead(name = "memberService")
+    @RateLimiter(name = "memberService")
     public List<Member> getAllMembers() {
         return memberRepository.findAll();
     }
 
+    @Bulkhead(name = "memberService")
+    @RateLimiter(name = "memberService")
     public Member getMemberById(Integer id) {
         return memberRepository.findById(id)
                 .orElseThrow(() -> new MemberNotFoundException("Member with ID " + id + " not found"));
     }
 
+    @Bulkhead(name = "memberService")
+    @RateLimiter(name = "memberService")
     public Member createMember(Member member) {
         if (memberRepository.existsByPhone(member.getPhone())) {
             throw new IllegalArgumentException("Phone number already exists: " + member.getPhone());
@@ -32,6 +40,8 @@ public class MemberService {
         return memberRepository.save(member);
     }
 
+    @Bulkhead(name = "memberService")
+    @RateLimiter(name = "memberService")
     public Member updateMember(Integer id, Member updatedMember) {
         Member existing = getMemberById(id);
 
@@ -48,6 +58,8 @@ public class MemberService {
         return memberRepository.save(existing);
     }
 
+    @Bulkhead(name = "memberService")
+    @RateLimiter(name = "memberService")
     public void deleteMember(Integer id) {
         if (!memberRepository.existsById(id)) {
             throw new MemberNotFoundException("Member with ID " + id + " not found");

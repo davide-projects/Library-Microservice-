@@ -1,7 +1,12 @@
 package com.apulia.bookservice.exception;
 
+import io.github.resilience4j.bulkhead.BulkheadFullException;
+import io.github.resilience4j.bulkhead.BulkheadRegistry;
+import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -14,6 +19,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -24,6 +30,26 @@ public class GlobalExceptionHandler {
 
     private static final DateTimeFormatter FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    @Autowired
+    private BulkheadRegistry bulkheadRegistry;
+
+    @Autowired
+    private RateLimiterRegistry rateLimiterRegistry;
+
+    private long bulkheadRetryAfterSeconds() {
+        return bulkheadRegistry.getAllBulkheads().stream()
+                .findFirst()
+                .map(b -> Math.max(1, b.getBulkheadConfig().getMaxWaitDuration().toSeconds()))
+                .orElse(1L);
+    }
+
+    private long rateLimiterRetryAfterSeconds() {
+        return rateLimiterRegistry.getAllRateLimiters().stream()
+                .findFirst()
+                .map(r -> Math.max(1, r.getRateLimiterConfig().getLimitRefreshPeriod().toSeconds()))
+                .orElse(1L);
+    }
 
     private String now() {
         return LocalDateTime.now().withNano(0).format(FORMATTER);
@@ -125,6 +151,40 @@ public class GlobalExceptionHandler {
                 "An internal server error occurred"
         );
         return ResponseEntity.status(ex.getStatusCode()).body(error);
+    }
+
+    @ExceptionHandler(BulkheadFullException.class)
+    public ResponseEntity<ErrorResponse> handleBulkheadFull(BulkheadFullException ex) {
+        logger.warn("Bulkhead is full: {}", ex.getMessage());
+        long retryAfterSeconds = bulkheadRetryAfterSeconds();
+        String message = "Service is currently busy, please retry after " + retryAfterSeconds + " second(s)";
+        ErrorResponse error = new ErrorResponse(
+                now(),
+                HttpStatus.TOO_MANY_REQUESTS.value(),
+                "TOO_MANY_REQUESTS",
+                message,
+                retryAfterSeconds
+        );
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(retryAfterSeconds))
+                .body(error);
+    }
+
+    @ExceptionHandler(RequestNotPermitted.class)
+    public ResponseEntity<ErrorResponse> handleRequestNotPermitted(RequestNotPermitted ex) {
+        logger.warn("Rate limit exceeded: {}", ex.getMessage());
+        long retryAfterSeconds = rateLimiterRetryAfterSeconds();
+        String message = "Too many requests, please retry after " + retryAfterSeconds + " second(s)";
+        ErrorResponse error = new ErrorResponse(
+                now(),
+                HttpStatus.TOO_MANY_REQUESTS.value(),
+                "TOO_MANY_REQUESTS",
+                message,
+                retryAfterSeconds
+        );
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(retryAfterSeconds))
+                .body(error);
     }
 
     @ExceptionHandler(NoHandlerFoundException.class)

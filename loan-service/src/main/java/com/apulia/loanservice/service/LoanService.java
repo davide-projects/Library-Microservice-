@@ -1,7 +1,7 @@
 package com.apulia.loanservice.service;
 
-import com.apulia.loanservice.client.BookClient;
-import com.apulia.loanservice.client.MemberClient;
+import com.apulia.loanservice.client.resilience.BookServiceClient;
+import com.apulia.loanservice.client.resilience.MemberServiceClient;
 import com.apulia.loanservice.dto.LoanDetailsDTO;
 import com.apulia.loanservice.dto.LoanRequestDTO;
 import com.apulia.loanservice.exception.LoanNotFoundException;
@@ -18,15 +18,15 @@ import java.util.List;
 public class LoanService {
 
     private final LoanRepository loanRepository;
-    private final BookClient bookClient;
-    private final MemberClient memberClient;
+    private final BookServiceClient bookServiceClient;
+    private final MemberServiceClient memberServiceClient;
 
     public LoanService(LoanRepository loanRepository,
-                       BookClient bookClient,
-                       MemberClient memberClient) {
+                       BookServiceClient bookServiceClient,
+                       MemberServiceClient memberServiceClient) {
         this.loanRepository = loanRepository;
-        this.bookClient = bookClient;
-        this.memberClient = memberClient;
+        this.bookServiceClient = bookServiceClient;
+        this.memberServiceClient = memberServiceClient;
     }
 
     // GET ALL
@@ -45,8 +45,8 @@ public class LoanService {
     @Transactional(readOnly = true)
     public LoanDetailsDTO getLoanDetailsById(Integer id) {
         Loan loan = getLoanById(id);
-        var book = bookClient.getBookById(loan.getBookId());
-        var member = memberClient.getMemberById(loan.getMemberId());
+        var book = bookServiceClient.getBookById(loan.getBookId());
+        var member = memberServiceClient.getMemberById(loan.getMemberId());
         return new LoanDetailsDTO(
                 loan,
                 book,
@@ -113,19 +113,19 @@ public class LoanService {
     }
 
     private void validateBook(Integer bookId) {
-        bookClient.getBookById(bookId);
+        bookServiceClient.getBookById(bookId);
     }
 
     private void validateMember(Integer memberId) {
-        memberClient.getMemberById(memberId);
+        memberServiceClient.getMemberById(memberId);
     }
 
     public List<LoanDetailsDTO> getLoanDetails() {
         List<Loan> loans = loanRepository.findAll();
         return loans.stream()
                 .map(loan -> {
-                    var book = bookClient.getBookById(loan.getBookId());
-                    var member = memberClient.getMemberById(loan.getMemberId());
+                    var book = bookServiceClient.getBookById(loan.getBookId());
+                    var member = memberServiceClient.getMemberById(loan.getMemberId());
                     return new LoanDetailsDTO(
                             loan,
                             book,

@@ -1,2 +1,21 @@
 server:
   port: 8081
+
+resilience4j:
+  bulkhead:
+    configs:
+      default:
+        max-concurrent-calls: 10
+        max-wait-duration: 500ms
+    instances:
+      bookService:
+        base-config: default
+  ratelimiter:
+    configs:
+      default:
+        limit-for-period: 100
+        limit-refresh-period: 1s
+        timeout-duration: 0
+    instances:
+      bookService:
+        base-config: default

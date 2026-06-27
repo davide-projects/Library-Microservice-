@@ -1,0 +1,9 @@
+# Use this workspace to collaborate
+workspace:
+  id: 668645c1-867c-4017-8262-3c08a523a95a
+
+localResources:
+  collections:
+    - ..\Library-Microservice-Architecture.postman_collection.json
+  environments:
+    - ..\Local-Environment.postman_environment.json

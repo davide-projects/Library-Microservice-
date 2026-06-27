@@ -6,15 +6,20 @@ public class ErrorResponse {
     private int status;
     private String error;
     private String message;
+    private Long retryAfterSeconds;
 
-    // Costruttore vuoto richiesto da Swagger/Jackson
     public ErrorResponse() {}
 
     public ErrorResponse(String timestamp, int status, String error, String message) {
+        this(timestamp, status, error, message, null);
+    }
+
+    public ErrorResponse(String timestamp, int status, String error, String message, Long retryAfterSeconds) {
         this.timestamp = timestamp;
         this.status = status;
         this.error = error;
         this.message = message;
+        this.retryAfterSeconds = retryAfterSeconds;
     }
 
     public String getTimestamp() {
@@ -47,5 +52,13 @@ public class ErrorResponse {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public Long getRetryAfterSeconds() {
+        return retryAfterSeconds;
+    }
+
+    public void setRetryAfterSeconds(Long retryAfterSeconds) {
+        this.retryAfterSeconds = retryAfterSeconds;
     }
 }

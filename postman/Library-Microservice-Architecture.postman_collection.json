@@ -1,0 +1,861 @@
+{
+  "info": {
+    "name": "Library Microservice Architecture",
+    "description": "Collezione completa per l'API Gateway del sistema Apulia Library.\n\n## Autenticazione\nTutte le richieste richiedono l'header:\n```\nAuthorization: Bearer {{token}}\n```\n\n## Setup rapido\n1. Importa questa collection\n2. Importa l'environment `Local-Environment.postman_environment.json`\n3. Seleziona l'environment \"Local Gateway (8080)\"\n4. Avvia i servizi con `docker-compose up -d`\n5. Inizia con `Authentication > Health Check`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "library-microservice"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Health Check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has body', () => pm.response.to.have.body());"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/book",
+              "host": ["{{baseUrl}}"],
+              "path": ["book"]
+            },
+            "description": "Verifica che il gateway sia raggiungibile e il token sia valido."
+          }
+        }
+      ],
+      "description": "Verifica connessione e autenticazione."
+    },
+    {
+      "name": "Book Service",
+      "item": [
+        {
+          "name": "GET /book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/book",
+              "host": ["{{baseUrl}}"],
+              "path": ["book"]
+            }
+          }
+        },
+        {
+          "name": "GET /book/:id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has id', () => pm.expect(pm.response.json()).to.have.property('id'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/book/{{bookId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["book", "{{bookId}}"]
+            }
+          }
+        },
+        {
+          "name": "POST /book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('bookId', json.id);",
+                  "pm.test('Has id', () => pm.expect(json).to.have.property('id'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Il Nome della Rosa\",\n  \"author\": \"Umberto Eco\",\n  \"publisher\": \"Bompiani\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/book",
+              "host": ["{{baseUrl}}"],
+              "path": ["book"]
+            }
+          }
+        },
+        {
+          "name": "PUT /book/:id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Title updated', () => pm.expect(json.title).to.eql('Il Nome della Rosa (Edizione Speciale)'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Il Nome della Rosa (Edizione Speciale)\",\n  \"author\": \"Umberto Eco\",\n  \"publisher\": \"Bompiani\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/book/{{bookId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["book", "{{bookId}}"]
+            }
+          }
+        },
+        {
+          "name": "PATCH /book/:id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Il Nome della Rosa (Annotato)\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/book/{{bookId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["book", "{{bookId}}"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /book/:id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/book/{{bookId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["book", "{{bookId}}"]
+            }
+          }
+        },
+        {
+          "name": "GET /book/search",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/book/search?title=Rosa&author=Eco",
+              "host": ["{{baseUrl}}"],
+              "path": ["book", "search"],
+              "query": [
+                { "key": "title", "value": "Rosa" },
+                { "key": "author", "value": "Eco" }
+              ]
+            }
+          }
+        }
+      ],
+      "description": "CRUD completo per il catalogo libri (book-service)."
+    },
+    {
+      "name": "Member Service",
+      "item": [
+        {
+          "name": "GET /members",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/members",
+              "host": ["{{baseUrl}}"],
+              "path": ["members"]
+            }
+          }
+        },
+        {
+          "name": "GET /members/:id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has id', () => pm.expect(pm.response.json()).to.have.property('id'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/members/{{memberId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["members", "{{memberId}}"]
+            }
+          }
+        },
+        {
+          "name": "POST /members",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('memberId', json.id);",
+                  "pm.test('Has id', () => pm.expect(json).to.have.property('id'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Mario\",\n  \"lastName\": \"Rossi\",\n  \"city\": \"Bari\",\n  \"phone\": \"+39 080 1234567\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/members",
+              "host": ["{{baseUrl}}"],
+              "path": ["members"]
+            }
+          }
+        },
+        {
+          "name": "PUT /members/:id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Mario\",\n  \"lastName\": \"Rossi\",\n  \"city\": \"Milano\",\n  \"phone\": \"+39 02 7654321\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/members/{{memberId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["members", "{{memberId}}"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /members/:id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/members/{{memberId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["members", "{{memberId}}"]
+            }
+          }
+        }
+      ],
+      "description": "CRUD completo per la gestione utenti (member-service)."
+    },
+    {
+      "name": "Loan Service",
+      "item": [
+        {
+          "name": "GET /loans",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/loans",
+              "host": ["{{baseUrl}}"],
+              "path": ["loans"]
+            }
+          }
+        },
+        {
+          "name": "GET /loans/:id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/loans/{{loanId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["loans", "{{loanId}}"]
+            }
+          }
+        },
+        {
+          "name": "POST /loans",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "if (json.length > 0) pm.environment.set('loanId', json[0].id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"memberId\": {{memberId}},\n  \"bookIds\": [{{bookId}}]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/loans",
+              "host": ["{{baseUrl}}"],
+              "path": ["loans"]
+            }
+          }
+        },
+        {
+          "name": "PATCH /loans/:id/return",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/loans/{{loanId}}/return",
+              "host": ["{{baseUrl}}"],
+              "path": ["loans", "{{loanId}}", "return"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /loans/:id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/loans/{{loanId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["loans", "{{loanId}}"]
+            }
+          }
+        },
+        {
+          "name": "GET /loans/details",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/loans/details",
+              "host": ["{{baseUrl}}"],
+              "path": ["loans", "details"]
+            }
+          }
+        },
+        {
+          "name": "GET /loans/details/:id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/loans/details/{{loanId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["loans", "details", "{{loanId}}"]
+            }
+          }
+        }
+      ],
+      "description": "CRUD completo per la gestione prestiti (loan-service)."
+    },
+    {
+      "name": "Resilience Tests",
+      "item": [
+        {
+          "name": "01 — Rate Limiter (book-service)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const baseUrl = pm.environment.get('baseUrl');",
+                  "const token = pm.environment.get('token');",
+                  "const totalRequests = 15;",
+                  "",
+                  "let ok = 0;",
+                  "let rateLimited = 0;",
+                  "let errors = 0;",
+                  "let completed = 0;",
+                  "",
+                  "for (let i = 0; i < totalRequests; i++) {",
+                  "    pm.sendRequest({",
+                  "        url: baseUrl + '/book',",
+                  "        method: 'GET',",
+                  "        header: { 'Authorization': 'Bearer ' + token }",
+                  "    }, (err, res) => {",
+                  "        if (err) {",
+                  "            errors++;",
+                  "        } else if (res.code === 429) {",
+                  "            rateLimited++;",
+                  "        } else if (res.code === 200) {",
+                  "            ok++;",
+                  "        }",
+                  "        completed++;",
+                  "    });",
+                  "}",
+                  "",
+                  "pm.collectionVariables.set('rl_ok', '');",
+                  "pm.collectionVariables.set('rl_rateLimited', '');",
+                  "pm.collectionVariables.set('rl_errors', '');",
+                  "",
+                  "const checkDone = setInterval(() => {",
+                  "    if (completed >= totalRequests) {",
+                  "        clearInterval(checkDone);",
+                  "        pm.collectionVariables.set('rl_ok', String(ok));",
+                  "        pm.collectionVariables.set('rl_rateLimited', String(rateLimited));",
+                  "        pm.collectionVariables.set('rl_errors', String(errors));",
+                  "        console.log('Rate Limiter: ' + ok + ' OK, ' + rateLimited + ' 429, ' + errors + ' ERR');",
+                  "    }",
+                  "}, 100);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const rateLimited = parseInt(pm.collectionVariables.get('rl_rateLimited'), 10);",
+                  "const errors = parseInt(pm.collectionVariables.get('rl_errors'), 10);",
+                  "",
+                  "pm.test('Rate Limited count > 0', () => {",
+                  "    pm.expect(rateLimited).to.be.above(0,",
+                  "        'Nessuna richiesta limitata. Abbassa limit-for-period in config-repo/ per testare.');",
+                  "});",
+                  "",
+                  "pm.test('No network errors', () => {",
+                  "    pm.expect(errors).to.eql(0, 'Errori di connessione: ' + errors);",
+                  "});",
+                  "",
+                  "console.log('RISULTATO: ' + rateLimited + ' richieste limitate su ~15');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/book",
+              "host": ["{{baseUrl}}"],
+              "path": ["book"]
+            },
+            "description": "Invia 15 richieste GET al book-service per verificare il Rate Limiter.\n\n**Attenzione**: modifica `config-repo/book-service.yml` impostando `limit-for-period: 3` prima del test."
+          }
+        },
+        {
+          "name": "02 — Bulkhead (book-service)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const baseUrl = pm.environment.get('baseUrl');",
+                  "const token = pm.environment.get('token');",
+                  "const concurrency = 15;",
+                  "",
+                  "let ok = 0;",
+                  "let bulkheadFull = 0;",
+                  "let errors = 0;",
+                  "let completed = 0;",
+                  "",
+                  "for (let i = 0; i < concurrency; i++) {",
+                  "    pm.sendRequest({",
+                  "        url: baseUrl + '/book',",
+                  "        method: 'GET',",
+                  "        header: { 'Authorization': 'Bearer ' + token }",
+                  "    }, (err, res) => {",
+                  "        if (err) {",
+                  "            errors++;",
+                  "        } else if (res.code === 503) {",
+                  "            bulkheadFull++;",
+                  "        } else if (res.code === 200) {",
+                  "            ok++;",
+                  "        }",
+                  "        completed++;",
+                  "    });",
+                  "}",
+                  "",
+                  "pm.collectionVariables.set('bh_ok', '');",
+                  "pm.collectionVariables.set('bh_bulkheadFull', '');",
+                  "pm.collectionVariables.set('bh_errors', '');",
+                  "",
+                  "const checkDone = setInterval(() => {",
+                  "    if (completed >= concurrency) {",
+                  "        clearInterval(checkDone);",
+                  "        pm.collectionVariables.set('bh_ok', String(ok));",
+                  "        pm.collectionVariables.set('bh_bulkheadFull', String(bulkheadFull));",
+                  "        pm.collectionVariables.set('bh_errors', String(errors));",
+                  "        console.log('Bulkhead: ' + ok + ' OK, ' + bulkheadFull + ' 503, ' + errors + ' ERR');",
+                  "    }",
+                  "}, 100);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const bulkheadFull = parseInt(pm.collectionVariables.get('bh_bulkheadFull'), 10);",
+                  "const errors = parseInt(pm.collectionVariables.get('bh_errors'), 10);",
+                  "",
+                  "pm.test('Bulkhead Full (503) count > 0', () => {",
+                  "    pm.expect(bulkheadFull).to.be.above(0,",
+                  "        'Nessun 503 Bulkhead Full. ' +",
+                  "        'Abbassa max-concurrent-calls in config-repo/book-service.yml a 2 e riavvia.');",
+                  "});",
+                  "",
+                  "pm.test('No network errors', () => {",
+                  "    pm.expect(errors).to.eql(0, 'Errori di connessione: ' + errors);",
+                  "});",
+                  "",
+                  "console.log('RISULTATO: ' + bulkheadFull + ' bulkhead full su ~15');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/book",
+              "host": ["{{baseUrl}}"],
+              "path": ["book"]
+            },
+            "description": "Invia 15 richieste CONCORRENTI al book-service per verificare il Bulkhead.\n\n**Attenzione**: modifica `config-repo/book-service.yml` impostando `max-concurrent-calls: 2` e `max-wait-duration: 0` prima del test."
+          }
+        },
+        {
+          "name": "03 — Circuit Breaker (loan-service)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const baseUrl = pm.environment.get('baseUrl');",
+                  "const token = pm.environment.get('token');",
+                  "",
+                  "pm.collectionVariables.set('cb_serviceUnavailable', '0');",
+                  "pm.collectionVariables.set('cb_ok', '0');",
+                  "",
+                  "const requests = [",
+                  "    { url: baseUrl + '/loans/details', method: 'GET' }",
+                  "];",
+                  "",
+                  "let serviceUnavailable = 0;",
+                  "let okCount = 0;",
+                  "let completed = 0;",
+                  "",
+                  "for (let i = 0; i < 8; i++) {",
+                  "    pm.sendRequest({",
+                  "        url: baseUrl + '/loans/details',",
+                  "        method: 'GET',",
+                  "        header: { 'Authorization': 'Bearer ' + token }",
+                  "    }, (err, res) => {",
+                  "        if (!err && res.code === 503) {",
+                  "            serviceUnavailable++;",
+                  "        } else if (!err && res.code === 200) {",
+                  "            okCount++;",
+                  "        }",
+                  "        completed++;",
+                  "    });",
+                  "}",
+                  "",
+                  "const checkDone = setInterval(() => {",
+                  "    if (completed >= 8) {",
+                  "        clearInterval(checkDone);",
+                  "        pm.collectionVariables.set('cb_serviceUnavailable', String(serviceUnavailable));",
+                  "        pm.collectionVariables.set('cb_ok', String(okCount));",
+                  "        console.log('CB: ' + okCount + ' OK, ' + serviceUnavailable + ' 503');",
+                  "    }",
+                  "}, 200);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const su = parseInt(pm.collectionVariables.get('cb_serviceUnavailable'), 10);",
+                  "const ok = parseInt(pm.collectionVariables.get('cb_ok'), 10);",
+                  "",
+                  "pm.test('Some requests completed (200 or 503)', () => {",
+                  "    pm.expect(ok + su).to.be.above(0);",
+                  "});",
+                  "",
+                  "console.log('RISULTATO CB: ' + ok + ' OK, ' + su + ' 503 Service Unavailable');",
+                  "if (su > 0) {",
+                  "    console.log('✓ Circuit breaker si è aperto e alcune richieste hanno ricevuto 503');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/loans/details",
+              "host": ["{{baseUrl}}"],
+              "path": ["loans", "details"]
+            },
+            "description": "Testa il Circuit Breaker di loan-service inviando 8 richieste. Se i servizi downstream non rispondono, alcune riceveranno 503."
+          }
+        }
+      ],
+      "description": "Test per i pattern di resilienza: Rate Limiter, Bulkhead e Circuit Breaker."
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "my-secret-token-123",
+      "type": "string"
+    }
+  ]
+}

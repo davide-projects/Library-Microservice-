@@ -6,12 +6,18 @@ public class ErrorResponse {
     private int status;
     private String error;
     private String message;
+    private Long retryAfterSeconds;
 
     public ErrorResponse(String timestamp, int status, String error, String message) {
+        this(timestamp, status, error, message, null);
+    }
+
+    public ErrorResponse(String timestamp, int status, String error, String message, Long retryAfterSeconds) {
         this.timestamp = timestamp;
         this.status = status;
         this.error = error;
         this.message = message;
+        this.retryAfterSeconds = retryAfterSeconds;
     }
 
     public String getTimestamp() {
@@ -28,5 +34,9 @@ public class ErrorResponse {
 
     public String getMessage() {
         return message;
+    }
+
+    public Long getRetryAfterSeconds() {
+        return retryAfterSeconds;
     }
 }

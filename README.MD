@@ -255,9 +255,154 @@ Library-Microservice-Architecture/
 - [x] Validazione input (PATCH con DTO, phone uniqueness)
 - [x] Migrazioni database con Flyway
 - [x] Rate limiting sul gateway (Bucket4j)
+- [x] Circuit Breaker + Retry + TimeLimiter (Resilience4j) su chiamate REST loan→book/member
+- [x] Gestione errori `ResourceAccessException` con fallback a `503 Service Unavailable`
+- [x] Bulkhead + Rate Limiter (Resilience4j) su book-service e member-service
 - [ ] Autenticazione JWT / OAuth2 (Keycloak)
-- [ ] Implementare Circuit Breaker (Resilience4j) su chiamate REST tra servizi
 
+---
+
+## Resilienza (Resilience4j)
+
+Il progetto implementa pattern di resilienza tramite **Resilience4j** per gestire guasti e sovraccarico.
+
+### Loan Service — Circuit Breaker + Retry (chiamate outgoing)
+
+Il loan-service chiama via REST book-service e member-service. Su queste chiamate sono applicati:
+
+| Pattern | Configurazione | Effetto |
+|---|---|---|
+| **Circuit Breaker** | `sliding-window-size=10`, `minimum-number-of-calls=5`, `failure-rate-threshold=50%`, `wait-duration-in-open-state=30s`, `permitted-number-of-calls-in-half-open-state=3` | Dopo il 50% di errori in una finestra di 10 chiamate (minimo 5), il circuito si apre per 30 secondi. In half-open state, 3 chiamate di prova decidono se chiudere o riaprire |
+| **Retry** | `max-attempts=3`, `wait-duration=500ms` | Ritenta fino a 3 volte le chiamate che falliscono con `5xx` o `ResourceAccessException` |
+| **Time Limiter** | `timeout-duration=4s` | Timeout massimo di 4 secondi per ogni chiamata |
+
+**Ignora 404**: Gli errori `404 Not Found` sono trattati come errori funzionali (`ValidationException`) e NON attivano il circuit breaker.
+
+**Fallback**: In caso di circuito aperto o errori dopo i retry, il servizio restituisce `503 Service Unavailable`.
+
+### Book Service & Member Service — Bulkhead + Rate Limiter (protezione inbound)
+
+I servizi leaf (book-service e member-service) non effettuano chiamate HTTP outgoing. Sono protetti da sovraccarico inbound tramite:
+
+| Pattern | Configurazione | Effetto |
+|---|---|---|
+| **Bulkhead** (semaforo) | `max-concurrent-calls=10`, `max-wait-duration=500ms` | Limita a 10 le chiamate contemporanee al service layer. L'undicesima chiamata simultanea attende fino a 500ms, poi riceve `503 Bulkhead Full` |
+| **Rate Limiter** | `limit-for-period=100`, `limit-refresh-period=1s` | Massimo 100 richieste al secondo. La 101esima riceve `429 Too Many Requests` senza attendere |
+
+### Test sui pattern di resilienza
+
+```bash
+# Esegue i test di resilienza per tutti i moduli
+.\mvnw.cmd test
+
+# Singoli moduli
+.\mvnw.cmd test -pl loan-service
+.\mvnw.cmd test -pl book-service
+.\mvnw.cmd test -pl member-service
+```
+
+---
+
+## Test con Postman (Resilienza)
+
+> **Prerequisito**: I servizi devono essere avviati (tramite `docker-compose up -d`). Tutte le richieste devono passare dal **Gateway sulla porta `8080`** con header:
+> ```
+> Authorization: Bearer my-secret-token-123
+> ```
+
+### Rate Limiter (book-service)
+
+La configurazione di produzione limita a **100 richieste/secondo**. Per testare con Postman:
+
+1. **Riduci temporaneamente il limite** modificando `config-repo/book-service.yml`:
+   ```yaml
+   ratelimiter:
+     instances:
+       bookService:
+         limit-for-period: 3
+   ```
+2. **Riavvia book-service**: `docker-compose restart book-service`
+3. Invia **5 richieste GET rapide** a `http://localhost:8080/book`
+   - Le prime 3 ≈ `200 OK`
+   - La 4ª e 5ª ≈ `429 Too Many Requests`
+     ```json
+     {
+       "status": 429,
+       "error": "Too Many Requests",
+       "message": "Book service is receiving too many requests. Please try again later."
+     }
+     ```
+4. **Ripristina** la configurazione originale e riavvia.
+
+> **Nota**: Con il valore di default `limit-for-period=100` è difficile raggiungere il limite con richieste manuali. Abbassalo per il test.
+
+### Bulkhead (book-service)
+
+Il bulkhead limita le **chiamate concorrenti** (non la frequenza). Con Postman è complesso perché servono richieste **veramente simultanee**.
+
+**Opzione 1 — Usa `curl` (PowerShell/cmd)**:
+
+1. Modifica `config-repo/book-service.yml` per valori piú stretti:
+   ```yaml
+   bulkhead:
+     instances:
+       bookService:
+         max-concurrent-calls: 2
+         max-wait-duration: 0
+   ```
+2. Riavvia: `docker-compose restart book-service`
+3. Esegui in PowerShell:
+   ```powershell
+   $url = "http://localhost:8080/book"
+   $headers = @{ Authorization = "Bearer my-secret-token-123" }
+   1..15 | ForEach-Object -Parallel {
+       try {
+           $r = Invoke-WebRequest -Uri $url -Headers $headers -UseBasicParsing
+           Write-Output "OK $($r.StatusCode)"
+       } catch {
+           Write-Output "ERR $($_.Exception.Response.StatusCode.value__)"
+       }
+   } -ThrottleLimit 15
+   ```
+   Dovresti vedere circa 2 `200 OK` e 13 `503` (Bulkhead Full).
+
+**Opzione 2 — Apache Bench**:
+
+```bash
+ab -n 15 -c 15 -H "Authorization: Bearer my-secret-token-123" http://localhost:8080/book
+```
+
+Con `max-concurrent-calls=2`, circa 13 richieste su 15 riceveranno `503`.
+
+### Circuit Breaker (loan-service)
+
+Il loan-service chiama book-service e member-service per arricchire i dettagli dei prestiti.
+Se un servizio downstream non risponde, dopo i retry il circuit breaker si apre e risponde con `503 Service Unavailable`.
+
+**Per testare con Postman o PowerShell**:
+
+1. Assicurati che tutti i servizi siano avviati
+2. Fai una GET a `{{baseUrl}}/loans/details` per verificare che funzioni (dovresti ricevere `200` con la lista dei prestiti arricchiti)
+3. Ferma book-service:
+   ```bash
+   docker compose stop book-service
+   ```
+4. Fai una GET a `{{baseUrl}}/loans/details`:
+   - Dopo alcuni tentativi (retry + apertura CB) → `503 Service Unavailable`
+   ```json
+   {
+     "status": 503,
+     "error": "SERVICE_UNAVAILABLE",
+     "message": "Book service is currently unavailable. Please try again later."
+   }
+   ```
+5. Riavvia book-service:
+   ```bash
+   docker compose start book-service
+   ```
+6. Dopo 30 secondi (wait-duration-in-open-state), il CB torna a half-open e poi closed → `200 OK`
+
+> **Nota**: Il circuito si apre dopo 5 fallimenti (minimum-number-of-calls) nel ritentare book-service. Ogni chiamata viene ritentata 3 volte (Retry) prima di considerarla fallita.
 
 ---
 
